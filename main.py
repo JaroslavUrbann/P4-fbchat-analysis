@@ -122,16 +122,16 @@ class GroupChat:
         percentiles = map(lambda x: 100.0 * x / len(self.master), ranked_counts)
         for x, y, p in zip(ranked_users, ranked_counts, percentiles):
             print "name: " + unicode(x) + "  count: " + unicode(y) + "  percentage: " + unicode(p)
-
-        explode = np.zeros(12)
+        o = 17
+        explode = np.zeros(o+1)
         explode[1] = 0.1
         others = 0
-        for l in range(len(ranked_counts) - 11):
-            others += ranked_counts[11 + l]
-        ranked_users[11] = str(len(ranked_counts) - 11) + " others"
-        ranked_counts[11] = others
+        for l in range(len(ranked_counts) - o):
+            others += ranked_counts[o + l]
+        ranked_users[o] = str(len(ranked_counts) - o) + " others"
+        ranked_counts[o] = others
         fig, ax = plt.subplots()
-        ax.pie(ranked_counts[:12], explode=explode, labels=ranked_users[:12], autopct="%1.1f%%", shadow=True, startangle=90, colors=["#ff9999", "#66b3ff", "#00b100", "#ffcc99"])
+        ax.pie(ranked_counts[:o+1], explode=explode, labels=ranked_users[:o+1], autopct="%1.1f%%", shadow=True, startangle=90, colors=["#ff9999", "#66b3ff", "#00b100", "#ffcc99"])
         ax.axis("equal")
         fig.tight_layout()
         fig = self.fig_watermark(fig, '% of comments submitted')
@@ -166,7 +166,6 @@ class GroupChat:
 
         fig.tight_layout()
         fig = self.fig_watermark(fig, 'All-User Lifetime Activity')
-        fig.savefig('./plots/all-user_lifetime_activity.png')
         fig.set_size_inches(30, 10.8)
         fig.savefig('./plots/all-user_lifetime_activity_wide.png')
 
@@ -186,17 +185,25 @@ class GroupChat:
         for i in range(len(names)):
             c = next(color)
             avg = np.convolve(data[i][1], np.ones((window,)) / window, mode='same')
-            ax.plot(data[i][0].astype(datetime), avg / bin_size, label=names[i], c=c, linestyle=linestyles[a])
+            if len(names) == 1:
+                ax.plot(data[i][0].astype(datetime), avg / bin_size, label=names[i], c="white", linestyle=linestyles[a])
+            else:
+                ax.plot(data[i][0].astype(datetime), avg / bin_size, label=names[i], c=c, linestyle=linestyles[a])
             a+= 1
             if a == 4:
                 a = 0
         ax.legend()
         ax.set_xlabel('Date')
         ax.set_ylabel('Avg. Messages per Day')
-
         fig.tight_layout()
-        fig = self.fig_watermark(fig, '%d User Lifetime Activity' % len(names))
-        fig.savefig('./plots/s_lifetime_activity.png')
+
+        fig.set_size_inches(30, 10.8)
+        if len(names) == 1:
+            fig = self.fig_watermark(fig, unicode(names[0]) + ' Lifetime Activity')
+            fig.savefig('./plots/' + unicode(names[0]) + '_lifetime_activity_wide.png')
+        else:
+            fig = self.fig_watermark(fig, '%d User Lifetime Activity' % len(names))
+            fig.savefig('./plots/s_lifetime_activity_wide.png')
 
     def matrix_plot(self):
 
@@ -262,6 +269,9 @@ class GroupChat:
 
         fig, ax = plt.subplots()
         x = np.linspace(0.0, 24.0, 1440)
+        ax.set_ylabel('Messages per hour')
+        ax.set_xticks(np.linspace(0.0, 24.0, 25))
+        ax.set_xlabel('Hour of Day')
         if names:
             data = []
             for name in names:
@@ -275,26 +285,37 @@ class GroupChat:
             for i, name in enumerate(names):
                 c = next(color)
                 d = self.daily_bins(data[i])
-                ax.plot(x, moving_average(d, window), label=name, c=c, linestyle=linestyles[a])
+                if len(names) == 1:
+                    ax.plot(x, moving_average(d, window), label=name, c="white", linestyle=linestyles[a])
+                else:
+                    ax.plot(x, moving_average(d, window), label=name, c=c, linestyle=linestyles[a])
                 ax.legend()
                 a += 1
                 if a == 4:
                     a = 0
             title = '%d-User Daily Activity' % len(names)
+            if len(names) == 1:
+                fig = self.fig_watermark(fig, unicode(names[0]) + ' Daily Activity')
+                fig.set_size_inches(30, 10.8)
+                fig.savefig('./plots/' + unicode(names[0]) + '_daily_activity.png')
+            else:
+                fig = self.fig_watermark(fig, title)
+                fig.set_size_inches(30, 10.8)
+                fig.savefig('./plots/%s.png' % title)
         else:
             ax.plot(x, self.daily_bins(self.times), color='k', alpha=0.1)
             ax.plot(x, moving_average(self.daily_bins(self.times), window))
             title = 'All-User Daily Activity'
 
-        ax.set_ylabel('Messages per hour')
-        ax.set_xticks(np.linspace(0.0, 24.0, 25))
-        ax.set_xlabel('Hour of Day')
+            ax.set_ylabel('Messages per hour')
+            ax.set_xticks(np.linspace(0.0, 24.0, 25))
+            ax.set_xlabel('Hour of Day')
 
-        fig.tight_layout()
-        fig = self.fig_watermark(fig, title)
-        fig.savefig('./plots/%s.png' % title)
-        fig.set_size_inches(30, 10.8)
-        fig.savefig('./plots/%s_wide.png' % title)
+            fig.tight_layout()
+            fig = self.fig_watermark(fig, title)
+            fig.savefig('./plots/%s.png' % title)
+            # fig.set_size_inches(30, 10.8)
+            # fig.savefig('./plots/%s_.png' % title)
 
 
     def weekly_plot(self, window=60):
@@ -367,16 +388,6 @@ class GroupChat:
         fig = groupchat.fig_watermark(fig, 'User Word Length Distribution')
         fig.savefig('./plots/All_User_Word_Length_Distribution.png')
 
-    def all(self):
-        print 'Performing all analysis...'
-        self.time_plot()
-        self.time_plot_user(groupchat.users)
-        self.matrix_plot()
-        self.daily_plot()
-        self.daily_plot(names=groupchat.users)
-        self.weekly_plot()
-        self.message_length_plot()
-        self.word_length_plot()
 
     @staticmethod
     def daily_bins(times, weekday=False):
@@ -390,7 +401,7 @@ class GroupChat:
             for t in times:
                 ix = (t.astype(datetime).hour * 60) + t.astype(datetime).minute
                 bins[ix] += 1
-        return bins*3600 / (1440.0)
+        return bins*60 / (1440.0)
 
     @staticmethod
     def fig_watermark(fig, title):
@@ -398,7 +409,7 @@ class GroupChat:
         x = fig.axes[0].get_position().x0
         w = fig.axes[0].get_position().width
         y = 0.92
-        fig.text(x, y, title, family='serif', size=18)
+        fig.text(x, y, title, family='serif', size=30)
         fig.text(x + w, y, "P4 Facebook chat analysis",
                  family='serif', size=10, ha='right', alpha=0.4)
         return fig
@@ -432,10 +443,15 @@ if __name__ == '__main__':
         print 'Performing all analysis...'
         groupchat.time_plot()
         groupchat.time_plot_user(groupchat.users)
-        groupchat.matrix_plot()
+        # groupchat.matrix_plot()
         groupchat.daily_plot()
         groupchat.daily_plot(names=groupchat.users)
         groupchat.weekly_plot()
         groupchat.message_length_plot()
         groupchat.word_length_plot()
         groupchat.message_rank()
+        plt.rcParams.update({'font.size': 24})
+        for user in groupchat.users:
+            groupchat.time_plot_user([user])
+        for user in groupchat.users:
+            groupchat.daily_plot(names=[user])
